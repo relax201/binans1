@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: bot-enhancer
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SQLITE_DB_PATH
+        value: /var/data/sqlite.db
+    disk:
+      name: sqlite-data
+      mountPath: /var/data
+      sizeGB: 1
