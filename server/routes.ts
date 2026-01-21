@@ -157,11 +157,27 @@ export async function registerRoutes(
       if (!settings) {
         const newSettings = await storage.createSettings(req.body);
         binanceService.updateSettings(newSettings);
+        autoTrader.updateSettings(newSettings);
+        await wsManager.broadcastSettings(newSettings);
         res.json(newSettings);
       } else {
         const updatedSettings = await storage.updateSettings(settings.id, parseResult.data);
         if (updatedSettings) {
           binanceService.updateSettings(updatedSettings);
+          autoTrader.updateSettings(updatedSettings);
+          await wsManager.broadcastSettings(updatedSettings);
+
+          if (!settings.trailingStopEnabled && updatedSettings.trailingStopEnabled) {
+            const activeTrades = await storage.getTrades("active");
+            for (const trade of activeTrades) {
+              if (!trade.trailingStopActive) {
+                const updatedTrade = await storage.updateTrade(trade.id, { trailingStopActive: true });
+                if (updatedTrade) {
+                  await wsManager.broadcastTradeUpdate(updatedTrade);
+                }
+              }
+            }
+          }
         }
         res.json(updatedSettings);
       }
@@ -288,7 +304,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid trade data", details: parseResult.error });
       }
 
-      const trade = await storage.createTrade(parseResult.data);
+      const settings = await storage.getSettings();
+      let trade = await storage.createTrade(parseResult.data);
+      if (settings?.trailingStopEnabled && !trade.trailingStopActive) {
+        const updatedTrade = await storage.updateTrade(trade.id, { trailingStopActive: true });
+        if (updatedTrade) {
+          trade = updatedTrade;
+        }
+      }
       
       const logEntry = await storage.createLog({
         level: 'success',

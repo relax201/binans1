@@ -58,6 +58,7 @@ export default function TradesPage() {
   const { toast } = useToast();
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [symbolFilter, setSymbolFilter] = useState<string>("");
+  const normalizeSymbol = (s: string) => s.replace("/", "").trim().toUpperCase();
 
   const { data: accountInfo, isLoading, refetch, isFetching } = useQuery<AccountInfo>({
     queryKey: ["/api/account"],
@@ -120,7 +121,8 @@ export default function TradesPage() {
   const enrichedPositions: EnrichedPosition[] = positions.map((pos) => {
     // Find matching trade in database
     const matchingTrade = activeTrades?.find(
-      (t) => t.symbol === pos.symbol && 
+      (t) =>
+        normalizeSymbol(t.symbol) === normalizeSymbol(pos.symbol) &&
              ((t.type === 'long' && pos.side === 'LONG') || (t.type === 'short' && pos.side === 'SHORT'))
     );
     
